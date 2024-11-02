@@ -1,1 +1,5 @@
-cdo-sdk-python
+cdo-sdk-python #this is the package that gives us all the tooling we need!
+questionary
+pyjwt
+black
+pyyaml
