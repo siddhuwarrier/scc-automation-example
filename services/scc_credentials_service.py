@@ -1,30 +1,40 @@
+# services/scc_credentials_service.py
 import os
-
 import yaml
-
 from services.token_validation_service import TokenValidationService
 from utils.interactive_cli import get_region_and_api_token
 from utils.region_mapping import get_scc_url
 
 
 class SccCredentialsService:
-    def __init__(self, config_file_path="~/.cisco-security.yaml"):
+    def __init__(
+        self, config_file_path="~/.cisco-security.yaml", region=None, api_token=None
+    ):
         self.config_file_path = os.path.expanduser(config_file_path)
-        self.region = None
-        self.api_token = None
+        self.region = region
+        self.api_token = api_token
         self.base_url = None
 
     def load_or_prompt_credentials(self):
-        if not os.path.exists(self.config_file_path):
-            self.prompt_and_save_credentials()
+        if self.region and self.api_token:
+            self.map_region_to_base_url()
+            if not TokenValidationService(
+                self.base_url, self.api_token
+            ).validate_token():
+                raise ValueError("The provided API token is invalid.")
         else:
-            self.load_credentials()
+            if not os.path.exists(self.config_file_path):
+                self.prompt_and_save_credentials()
+            else:
+                self.load_credentials()
 
-        if not TokenValidationService(self.base_url, self.api_token).validate_token():
-            print(
-                "The API token in ~/.cisco-security.yaml is invalid. Please re-enter your credentials."
-            )
-            self.prompt_and_save_credentials()
+            if not TokenValidationService(
+                self.base_url, self.api_token
+            ).validate_token():
+                print(
+                    "The API token in ~/.cisco-security.yaml is invalid. Please re-enter your credentials."
+                )
+                self.prompt_and_save_credentials()
 
     def prompt_and_save_credentials(self):
         self.region, self.api_token = get_region_and_api_token()

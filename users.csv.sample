@@ -1,0 +1,6 @@
+username,role,api_only_user
+user1@example.com,ROLE_ADMIN,false
+user2@example.com,ROLE_SUPER_ADMIN,false
+api-only-user-1,ROLE_READ_ONLY,true
+api-only-user-2,ROLE_EDIT_ONLY,true
+user5@example.com,ROLE_DEPLOY_ONLY,false

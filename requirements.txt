@@ -1,5 +1,9 @@
-cdo-sdk-python #this is the package that gives us all the tooling we need!
+cdo-sdk-python>=1.0.0,<2.0.0 #this is the package that gives us all the tooling we need!
 questionary
 pyjwt
 black
 pyyaml
+rich
+click
+email-validator
+click_option_group

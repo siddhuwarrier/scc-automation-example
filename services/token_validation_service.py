@@ -7,11 +7,11 @@ class TokenValidationService:
         self.api_token = api_token
 
     def validate_token(self):
-        configuration = Configuration(host=self.base_url, api_key=self.api_token)
+        configuration = Configuration(host=self.base_url, access_token=self.api_token)
         with ApiClient(configuration) as api_client:
             api_instance = UsersApi(api_client)
             try:
-                token = api_instance.get_token()
+                api_instance.get_token()
             except ApiException as e:
                 return False
         return True

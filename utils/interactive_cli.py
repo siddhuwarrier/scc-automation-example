@@ -5,7 +5,7 @@ import questionary
 from cdo_sdk_python import Configuration
 
 
-from utils.region_mapping import supported_regions
+from utils.region_mapping import supported_regions, supported_regions_choices
 
 
 def validate_region(region: str) -> bool:
@@ -23,7 +23,7 @@ def validate_api_token(api_token: str) -> bool:
 def get_region_and_api_token():
     try:
         region = questionary.select(
-            "Select the region:", choices=supported_regions
+            "Select the region:", choices=supported_regions_choices
         ).ask()
 
         if not validate_region(region):
