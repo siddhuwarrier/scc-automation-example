@@ -37,6 +37,7 @@ class CmdlineArgs:
     users_csv_file: str
     region: str
     api_token: str
+    provision_cdfmc: str
 
 
 def validate_user_csv_file(
@@ -86,9 +87,38 @@ def create_tenant(
     return msp_managed_tenant
 
 
+def provision_cdfmc_on_msp_managed_tenant(
+    msp_managed_tenant: MspManagedTenant, api_client: ApiClient
+) -> None:
+    msp_api: MSPApi = MSPApi(api_client)
+    transaction_service: TransactionService = TransactionService(api_client)
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        provision_cdfmc_task_id: TaskID = progress.add_task(
+            "Provisioning cdFMC...", start=True
+        )
+        transaction: CdoTransaction = msp_api.provision_cd_fmc_for_tenant_in_msp_portal(
+            msp_managed_tenant.uid
+        )
+        try:
+            transaction_service.wait_for_transaction_to_finish(
+                transaction_uid=transaction.transaction_uid
+            )
+        except RuntimeError as e:
+            progress.update(task_id=provision_cdfmc_task_id, description=f"Error:{e}")
+            sys.exit(1)
+        finally:
+            progress.stop_task(task_id=provision_cdfmc_task_id)
+
+
 def create_users(
     users: List[UserInput], msp_managed_tenant: MspManagedTenant, api_client: ApiClient
 ) -> None:
+
     msp_api = MSPApi(api_client)
     transaction_service = TransactionService(api_client)
     with Progress(
@@ -129,6 +159,11 @@ def create_users(
     callback=validate_user_csv_file,
     help="Path to the CSV file with user data. The CSV file must contain 'username', 'role', and 'api_only_user' columns. 'username' must be an email address if 'api_only_user' is false, and not an email address if 'api_only_user' is true. 'role' must be one of 'ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_READ_ONLY', 'ROLE_EDIT_ONLY', 'ROLE_DEPLOY_ONLY', or 'ROLE_VPN_SESSION_MANAGER'.",
 )
+@click.option(
+    "--provision-cdfmc",
+    type=click.Choice(["yes", "no"]),
+    help="Provision a cdFMC (yes or no).",
+)
 @optgroup.group("API Credentials", cls=AllOptionGroup)
 @optgroup.option(
     "--region",
@@ -142,6 +177,7 @@ def main(
     users_csv_file: str,
     region: str,
     api_token: str,
+    provision_cdfmc: str,
 ) -> None:
     args: CmdlineArgs = CmdlineArgs(
         tenant_name=tenant_name,
@@ -149,6 +185,7 @@ def main(
         users_csv_file=users_csv_file,
         region=region,
         api_token=api_token,
+        provision_cdfmc=provision_cdfmc,
     )
     credentials_service = SccCredentialsService(
         region=args.region, api_token=args.api_token
@@ -168,6 +205,13 @@ def main(
         args.display_name = questionary.text("Enter the display name:").ask()
     users: List[UserInput] = scc_users_parser.get_users()
 
+    if not args.provision_cdfmc:
+        args.provision_cdfmc = questionary.text(
+            message="Do you want to provision a cdFMC? [yes/no]",
+            default="no",
+            validate=lambda text: text.lower() in ["yes", "no"],
+        ).ask()
+
     with ApiClient(Configuration(host=base_url, access_token=api_token)) as api_client:
         msp_managed_tenant: MspManagedTenant = create_tenant(
             tenant_name=args.tenant_name,
@@ -179,6 +223,10 @@ def main(
             users=users, msp_managed_tenant=msp_managed_tenant, api_client=api_client
         )
         console.print("[green]Users added to tenant successfully[/green]")
+        provision_cdfmc_on_msp_managed_tenant(
+            msp_managed_tenant=msp_managed_tenant, api_client=api_client
+        )
+        console.print("[green]cdFMC provisioned successfully[/green]")
 
 
 if __name__ == "__main__":

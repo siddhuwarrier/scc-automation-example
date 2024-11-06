@@ -7,6 +7,8 @@ supported_regions_choices = [
     Choice(value="aus", title="Australia"),
     Choice(value="apj", title="Asia Pacific Japan"),
     Choice(value="in", title="India"),
+    Choice(value="staging", title="Staging (Cisco Developers only)"),
+    Choice(value="scale", title="Scale (Cisco Developers only)"),
 ]
 
 
