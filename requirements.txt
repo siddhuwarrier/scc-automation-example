@@ -7,3 +7,4 @@ rich
 click
 email-validator
 click_option_group
+requests
