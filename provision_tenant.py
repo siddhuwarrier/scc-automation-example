@@ -1,31 +1,16 @@
 import re
-import re
-import sys
 from dataclasses import dataclass
 from typing import List
 
 import click
 import questionary
-from cdo_sdk_python import (
-    ApiClient,
-    Configuration,
-    MSPApi,
-    MspCreateTenantInput,
-    CdoTransaction,
-    UserInput,
-    MspAddUsersToTenantInput,
-)
-from cdo_sdk_python.models.msp_managed_tenant import MspManagedTenant
-from click_option_group import (
-    optgroup,
-    AllOptionGroup,
-)
+from cdo_sdk_python import ApiClient, Configuration, UserInput, MspManagedTenant
+from click_option_group import optgroup, AllOptionGroup
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TaskID
 
 from parsers.scc_users_parser import SccUsersParser
+from services.msp_api_service import MspApiService
 from services.scc_credentials_service import SccCredentialsService
-from services.transaction_service import TransactionService
 from utils.region_mapping import supported_regions
 from validators.users_csv_validator import UsersCsvValidator
 
@@ -48,102 +33,6 @@ def validate_user_csv_file(
         if not validator.validate():
             raise click.BadParameter(f"CSV file {value} is invalid.")
     return value
-
-
-def create_tenant(
-    tenant_name: str, display_name: str, api_client: ApiClient
-) -> MspManagedTenant:
-    msp_api: MSPApi = MSPApi(api_client)
-    transaction_service: TransactionService = TransactionService(api_client)
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        create_tenant_task_id: TaskID = progress.add_task(
-            "Creating tenant...", start=True
-        )
-        transaction: CdoTransaction = msp_api.create_tenant(
-            MspCreateTenantInput(
-                **{"tenant_name": tenant_name, "display_name": display_name}
-            )
-        )
-        try:
-            finished_transaction: CdoTransaction = (
-                transaction_service.wait_for_transaction_to_finish(
-                    transaction_uid=transaction.transaction_uid
-                )
-            )
-            msp_managed_tenant: MspManagedTenant = msp_api.get_msp_managed_tenant(
-                tenant_uid=finished_transaction.entity_uid
-            )
-        except RuntimeError as e:
-            progress.update(task_id=create_tenant_task_id, description=f"Error:{e}")
-            sys.exit(1)
-        finally:
-            progress.stop_task(task_id=create_tenant_task_id)
-
-    return msp_managed_tenant
-
-
-def provision_cdfmc_on_msp_managed_tenant(
-    msp_managed_tenant: MspManagedTenant, api_client: ApiClient
-) -> None:
-    msp_api: MSPApi = MSPApi(api_client)
-    transaction_service: TransactionService = TransactionService(api_client)
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        provision_cdfmc_task_id: TaskID = progress.add_task(
-            "Provisioning cdFMC...", start=True
-        )
-        transaction: CdoTransaction = msp_api.provision_cd_fmc_for_tenant_in_msp_portal(
-            msp_managed_tenant.uid
-        )
-        try:
-            transaction_service.wait_for_transaction_to_finish(
-                transaction_uid=transaction.transaction_uid
-            )
-        except RuntimeError as e:
-            progress.update(task_id=provision_cdfmc_task_id, description=f"Error:{e}")
-            sys.exit(1)
-        finally:
-            progress.stop_task(task_id=provision_cdfmc_task_id)
-
-
-def create_users(
-    users: List[UserInput], msp_managed_tenant: MspManagedTenant, api_client: ApiClient
-) -> None:
-
-    msp_api = MSPApi(api_client)
-    transaction_service = TransactionService(api_client)
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        add_users_to_tenant_task_id: TaskID = progress.add_task(
-            f"Creating {len(users)} users in tenant {msp_managed_tenant.display_name} ({msp_managed_tenant.region})...",
-            start=True,
-        )
-        transaction: CdoTransaction = msp_api.add_users_to_tenant_in_msp_portal(
-            msp_managed_tenant.uid, MspAddUsersToTenantInput(**{"users": users})
-        )
-        try:
-            transaction_service.wait_for_transaction_to_finish(
-                transaction_uid=transaction.transaction_uid
-            )
-        except RuntimeError as e:
-            progress.update(
-                task_id=add_users_to_tenant_task_id, description=f"Error:{e}"
-            )
-            sys.exit(1)
-        finally:
-            progress.stop_task(task_id=add_users_to_tenant_task_id)
 
 
 @click.command(
@@ -204,6 +93,14 @@ def main(
     if not args.display_name:
         args.display_name = questionary.text("Enter the display name:").ask()
     users: List[UserInput] = scc_users_parser.get_users()
+    api_only_user_name = f"{args.tenant_name}-api-only-user"
+    console.print(
+        f"[yellow]Adding API-only user {api_only_user_name} to configure the newly provisioned tenant... [/yellow]"
+    )
+    api_only_user = UserInput(
+        username=api_only_user_name, role="ROLE_SUPER_ADMIN", api_only_user=True
+    )
+    users.append(api_only_user)
 
     if not args.provision_cdfmc:
         args.provision_cdfmc = questionary.text(
@@ -213,18 +110,31 @@ def main(
         ).ask()
 
     with ApiClient(Configuration(host=base_url, access_token=api_token)) as api_client:
-        msp_managed_tenant: MspManagedTenant = create_tenant(
+        msp_api_service = MspApiService(api_client)
+        msp_managed_tenant: MspManagedTenant = msp_api_service.create_tenant(
             tenant_name=args.tenant_name,
             display_name=args.display_name,
-            api_client=api_client,
         )
-        console.print("[green]Tenant created successfully[/green]")
-        create_users(
-            users=users, msp_managed_tenant=msp_managed_tenant, api_client=api_client
+        console.print(
+            f"[green]Tenant {msp_managed_tenant.display_name} (UID: {msp_managed_tenant.uid})created successfully[/green]"
         )
+        msp_api_service.create_users(users=users, msp_managed_tenant=msp_managed_tenant)
+        # msp_managed_tenant = MspManagedTenant(
+        #     uid="f2fa9a96-658c-4f1f-be6b-eca6163cc0a2",
+        #     display_name=args.display_name,
+        #     tenant_name=args.tenant_name,
+        #     region=args.region,
+        # )
         console.print("[green]Users added to tenant successfully[/green]")
-        provision_cdfmc_on_msp_managed_tenant(
-            msp_managed_tenant=msp_managed_tenant, api_client=api_client
+        msp_managed_tenant_api_token = (
+            msp_api_service.generate_managed_tenant_api_token(
+                msp_managed_tenant=msp_managed_tenant, username=api_only_user_name
+            )
+        )
+        msp_api_service.provision_cdfmc_on_msp_managed_tenant(
+            msp_managed_tenant=msp_managed_tenant,
+            msp_managed_tenant_api_token=msp_managed_tenant_api_token,
+            should_wait_for_cdfmc_to_be_active=True,
         )
         console.print("[green]cdFMC provisioned successfully[/green]")
 
