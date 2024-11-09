@@ -112,41 +112,36 @@ def main(
 
     with ApiClient(Configuration(host=base_url, access_token=api_token)) as api_client:
         msp_api_service = MspApiService(api_client=api_client)
-        # msp_managed_tenant: MspManagedTenant = msp_api_service.create_tenant(
-        #     tenant_name=args.tenant_name,
-        #     display_name=args.display_name,
-        # )
-        # console.print(
-        #     f"[green]Tenant {msp_managed_tenant.display_name} (UID: {msp_managed_tenant.uid})created successfully[/green]"
-        # )
-        # msp_api_service.create_users(users=users, msp_managed_tenant=msp_managed_tenant)
-        msp_managed_tenant = MspManagedTenant(
-            uid="fe776247-b5ff-4c0c-95d5-0c61d49d0c6e",
-            display_name=args.display_name,
+        msp_managed_tenant: MspManagedTenant = msp_api_service.create_tenant(
             tenant_name=args.tenant_name,
-            region=args.region,
+            display_name=args.display_name,
         )
-        # console.print("[green]Users added to tenant successfully[/green]")
+        console.print(
+            f"[green]Tenant {msp_managed_tenant.display_name} (UID: {msp_managed_tenant.uid})created successfully[/green]"
+        )
+        msp_api_service.create_users(users=users, msp_managed_tenant=msp_managed_tenant)
+        console.print("[green]Users added to tenant successfully[/green]")
         msp_managed_tenant_api_token = (
             msp_api_service.generate_managed_tenant_api_token(
                 msp_managed_tenant=msp_managed_tenant, username=api_only_user_name
             )
         )
-        # msp_api_service.provision_cdfmc_on_msp_managed_tenant(
-        #     msp_managed_tenant=msp_managed_tenant,
-        #     msp_managed_tenant_api_token=msp_managed_tenant_api_token,
-        #     should_wait_for_cdfmc_to_be_active=True,
-        # )
-        # console.print("[green]cdFMC provisioned successfully[/green]")
+        msp_api_service.provision_cdfmc_on_msp_managed_tenant(
+            msp_managed_tenant=msp_managed_tenant,
+            msp_managed_tenant_api_token=msp_managed_tenant_api_token,
+            should_wait_for_cdfmc_to_be_active=True,
+        )
+        console.print("[green]cdFMC provisioned successfully[/green]")
         cdfmc_api_service = CdFmcApiService(
             api_client=ApiClient(
                 Configuration(host=base_url, access_token=msp_managed_tenant_api_token)
             )
         )
         access_policy_uid = cdfmc_api_service.create_default_access_policy()
-        print(f"Created access policy with UID {access_policy_uid}")
         cdfmc_api_service.block_gambling(access_policy_uid=access_policy_uid)
-        console.print("[green]MSP access policy created successfully[/green]")
+        console.print(
+            f"[green]MSP access policy with UID {access_policy_uid} created successfully[/green]"
+        )
 
 
 if __name__ == "__main__":
