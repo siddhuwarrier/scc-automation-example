@@ -28,7 +28,10 @@ class CdFmcApiService:
     def create_default_access_policy(self):
 
         policy = CdFmcAccessPolicy(name="MSP Access Policy", default_action="BLOCK")
-        url = f"{self.api_client.configuration.host}/v1/cdfmc/api/fmc_config/v1/domain/{self.cdfmc_domain_uid}/policy/accesspolicies"
+        url = (
+            f"{self.api_client.configuration.host}/v1/cdfmc/api/fmc_config/v1/domain/"
+            f"{self.cdfmc_domain_uid}/policy/accesspolicies"
+        )
         headers = {
             "Authorization": f"Bearer {self.api_client.configuration.access_token}",
             "Content-Type": "application/json",
@@ -41,7 +44,10 @@ class CdFmcApiService:
         gambling_category_id: str = self._get_gambling_category_id()
         any_ipv4_obj_id: str = self._get_any_ipv4_network_object()
 
-        url = f"{self.api_client.configuration.host}/v1/cdfmc/api/fmc_config/v1/domain/{self.cdfmc_domain_uid}/policy/accesspolicies/{access_policy_uid}/accessrules"
+        url = (
+            f"{self.api_client.configuration.host}/v1/cdfmc/api/fmc_config/v1/domain/"
+            f"{self.cdfmc_domain_uid}/policy/accesspolicies/{access_policy_uid}/accessrules"
+        )
         headers = {
             "Authorization": f"Bearer {self.api_client.configuration.access_token}",
             "Content-Type": "application/json",

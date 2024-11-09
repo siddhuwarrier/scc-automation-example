@@ -27,6 +27,9 @@ class MspApiService:
         self.transaction_service = TransactionService(api_client)
         self.console = Console()
 
+    def get_managed_tenant_by_uid(self, tenant_uid: str) -> MspManagedTenant:
+        return self.msp_api.get_msp_managed_tenant(tenant_uid)
+
     def create_tenant(self, tenant_name: str, display_name: str) -> MspManagedTenant:
         with Progress(
             SpinnerColumn(),
