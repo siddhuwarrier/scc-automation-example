@@ -1,0 +1,2 @@
+base_url="<https://aus.manage.security.cisco.com|https://eu.manage.security.cisco.com|https://us.manage.security.cisco.com|https://in.manage.security.cisco.com|https://apj.manage.security.cisco.com>"
+mssp_portal_api_token=<enter-api-token>
