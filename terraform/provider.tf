@@ -2,7 +2,7 @@ terraform {
   required_providers {
     cdo = {
       source = "CiscoDevNet/cdo"
-      version = "3.0.2"
+      version = "3.2.0"
     }
   }
 }

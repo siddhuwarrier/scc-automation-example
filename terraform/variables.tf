@@ -5,7 +5,7 @@ variable "base_url" {
     condition = contains([
       "https://aus.manage.security.cisco.com", "https://eu.manage.security.cisco.com",
       "https://us.manage.security.cisco.com", "https://in.manage.security.cisco.com",
-      "https://apj.manage.security.cisco.com"
+      "https://apj.manage.security.cisco.com", "https://staging.manage.security.cisco.com"
     ], var.base_url)
     error_message = "The base_url must be one of the following: https://aus.manage.security.cisco.com, https://eu.manage.security.cisco.com, https://us.manage.security.cisco.com, https://in.manage.security.cisco.com, https://apj.manage.security.cisco.com."
   }
