@@ -1,4 +1,5 @@
 import sys
+from typing import List
 
 import questionary
 from cdo_sdk_python import (
@@ -126,3 +127,20 @@ class InventoryApiService:
             progress.stop_task(task_id=task_id)
 
         return device
+
+    def get_devices(self, q: str = None) -> List[Device]:
+        devices: List[Device] = []
+        count: int = 0
+        offset: int = 0
+        limit: int = 200
+        while True:
+            device_page: DevicePage = self.inventory_api.get_devices(
+                limit=str(limit), offset=str(offset), q=q
+            )
+            devices.extend(device_page.items)
+            count = device_page.count
+            offset += limit
+            if len(devices) >= count:
+                break
+
+        return devices

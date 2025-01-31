@@ -1,6 +1,5 @@
 import requests
-from cdo_sdk_python import ApiClient, CloudDeliveredFMCApi, InventoryApi, DevicePage
-from jwt import get_algorithm_by_name
+from cdo_sdk_python import ApiClient, InventoryApi, DevicePage
 
 from models.fmc import (
     CdFmcAccessPolicy,

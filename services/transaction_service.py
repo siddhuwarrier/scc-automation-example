@@ -1,8 +1,6 @@
 import time
 
-from cdo_sdk_python import ApiClient, Configuration, TransactionsApi, CdoTransaction
-from cdo_sdk_python.models.cdo_transaction_status import CdoTransactionStatus
-from cdo_sdk_python.models.cdo_transaction_type import CdoTransactionType
+from cdo_sdk_python import TransactionsApi, CdoTransaction
 
 
 class TransactionService:
@@ -16,13 +14,13 @@ class TransactionService:
             transaction_uid
         )
         while transaction.cdo_transaction_status not in [
-            CdoTransactionStatus.DONE,
-            CdoTransactionStatus.ERROR,
+            "DONE",
+            "ERROR",
         ]:
             time.sleep(time_to_wait_between_retries_seconds)
             transaction = self.transactions_api.get_transaction(transaction_uid)
 
-        if transaction.cdo_transaction_status == CdoTransactionStatus.ERROR:
+        if transaction.cdo_transaction_status == "ERROR":
             raise RuntimeError(
                 f"Transaction {transaction_uid} failed: {transaction.transaction_details}"
             )
